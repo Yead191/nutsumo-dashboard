@@ -15,7 +15,7 @@ export const categoriesApi = baseApi.injectEndpoints({
     // Category Endpoints
     getCategories: builder.query<
       CategoriesResponse,
-      { searchTerm?: string; page?: number; limit?: number; all?: boolean } | void
+      { searchTerm?: string; page?: number; limit?: number } | void
     >({
       query: (params) => ({
         url: "/category",
@@ -24,7 +24,6 @@ export const categoriesApi = baseApi.injectEndpoints({
           ...(params?.searchTerm ? { searchTerm: params.searchTerm } : {}),
           ...(params?.page ? { page: params.page } : {}),
           ...(params?.limit ? { limit: params.limit } : {}),
-          all: "true",
         },
       }),
       providesTags: (result) =>
@@ -97,7 +96,7 @@ export const categoriesApi = baseApi.injectEndpoints({
     // Service Catalog Endpoints
     getServices: builder.query<
       ServicesResponse,
-      { category?: string; searchTerm?: string; page?: number; limit?: number; all?: boolean } | void
+      { category?: string; searchTerm?: string; page?: number; limit?: number; isActive?: boolean } | void
     >({
       query: (params) => ({
         url: "/service",
@@ -107,7 +106,7 @@ export const categoriesApi = baseApi.injectEndpoints({
           ...(params?.searchTerm ? { searchTerm: params.searchTerm } : {}),
           ...(params?.page ? { page: params.page } : {}),
           ...(params?.limit ? { limit: params.limit } : {}),
-          all: "true",
+          ...(params?.isActive !== undefined ? { isActive: params.isActive } : {}),
         },
       }),
       providesTags: (result) =>

@@ -5,11 +5,11 @@ import {
   Button,
   Input,
   Tag,
-  Tabs,
-  Select,
   Popconfirm,
   Dropdown,
   Switch,
+  Segmented,
+  Tooltip,
   type MenuProps,
   type TableProps,
 } from "antd";
@@ -21,130 +21,94 @@ import {
   DeleteOutlined,
   EyeOutlined,
   MoreOutlined,
-  FolderOutlined,
+  FolderOpenOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined,
+  RightOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
   ToolOutlined,
 } from "@ant-design/icons";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CreateEditCategoryModal } from "./components/CreateEditCategoryModal";
-import { CreateEditServiceModal } from "./components/CreateEditServiceModal";
 import {
   useGetCategoriesQuery,
   useDeleteCategoryMutation,
   useUpdateCategoryMutation,
-  useGetServicesQuery,
-  useDeleteServiceMutation,
-  useUpdateServiceMutation,
 } from "@/redux/features/categories/categoriesApi";
-import type {
-  ServiceCategory,
-  CatalogService,
-} from "@/redux/features/categories/categories.types";
+import type { ServiceCategory } from "@/redux/features/categories/categories.types";
 import { getImageUrl } from "@/lib/getImageUrl";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function CategoriesPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"categories" | "services">("categories");
 
-  // Category filter/pagination/modal states
-  const [categorySearch, setCategorySearch] = useState("");
-  const [categoryPage, setCategoryPage] = useState(1);
-  const [categoryLimit, setCategoryLimit] = useState(10);
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  // Search & Pagination
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(12);
+
+  // View Mode: Grid cards or Table
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+
+  // Modal State
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
-
-  // Service filter/pagination/modal states
-  const [serviceSearch, setServiceSearch] = useState("");
-  const [servicePage, setServicePage] = useState(1);
-  const [serviceLimit, setServiceLimit] = useState(10);
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
-  const [serviceModalOpen, setServiceModalOpen] = useState(false);
-  const [editingService, setEditingService] = useState<CatalogService | null>(null);
 
   // Queries & Mutations
   const {
     data: categoriesRes,
-    isLoading: isCategoriesLoading,
-    refetch: refetchCategories,
+    isLoading,
+    refetch,
   } = useGetCategoriesQuery({
-    searchTerm: categorySearch || undefined,
-    page: categoryPage,
-    limit: categoryLimit,
-  });
-
-  const {
-    data: servicesRes,
-    isLoading: isServicesLoading,
-    refetch: refetchServices,
-  } = useGetServicesQuery({
-    category: selectedCategoryFilter !== "all" ? selectedCategoryFilter : undefined,
-    searchTerm: serviceSearch || undefined,
-    page: servicePage,
-    limit: serviceLimit,
+    searchTerm: searchTerm || undefined,
+    page,
+    limit,
   });
 
   const [deleteCategory] = useDeleteCategoryMutation();
   const [updateCategory] = useUpdateCategoryMutation();
-  const [deleteService] = useDeleteServiceMutation();
-  const [updateService] = useUpdateServiceMutation();
 
   const categories = categoriesRes?.data || [];
-  const services = servicesRes?.data || [];
+  const pagination = categoriesRes?.pagination;
 
-  // Handlers for Category
-  const handleDeleteCategory = async (id: string) => {
+  // Stats calculation
+  const totalCategories = pagination?.total ?? categories.length;
+  const activeCount = categories.filter((c) => c.isActive).length;
+  const totalServicesAcross = categories.reduce(
+    (acc, curr) => acc + (curr.servicesCount ?? (curr.services?.length || 0)),
+    0
+  );
+
+  const handleDelete = async (id: string) => {
     try {
       await deleteCategory(id).unwrap();
-      toast.success("Category deleted successfully");
+      toast.success("Category folder deleted successfully");
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to delete category");
     }
   };
 
-  const handleToggleCategoryActive = async (record: ServiceCategory) => {
+  const handleToggleActive = async (record: ServiceCategory) => {
     try {
       await updateCategory({
         id: record._id,
         isActive: !record.isActive,
       }).unwrap();
       toast.success(
-        `Category ${record.isActive ? "deactivated" : "activated"} successfully`
+        `Category folder ${record.isActive ? "deactivated" : "activated"} successfully`
       );
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to update category status");
     }
   };
 
-  // Handlers for Service
-  const handleDeleteService = async (id: string) => {
-    try {
-      await deleteService(id).unwrap();
-      toast.success("Service deleted from catalog");
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to delete service");
-    }
-  };
-
-  const handleToggleServiceActive = async (record: CatalogService) => {
-    try {
-      await updateService({
-        id: record._id,
-        isActive: !record.isActive,
-      }).unwrap();
-      toast.success(
-        `Service ${record.isActive ? "deactivated" : "activated"} successfully`
-      );
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to update service status");
-    }
-  };
-
-  // Category Columns
-  const categoryColumns: TableProps<ServiceCategory>["columns"] = [
+  // Table Columns
+  const columns: TableProps<ServiceCategory>["columns"] = [
     {
-      title: "Category",
+      title: "Category Folder",
       key: "category",
       render: (_, record) => {
         const imgUrl = record.image ? getImageUrl(record.image) : null;
@@ -157,16 +121,17 @@ export default function CategoriesPage() {
               <img
                 src={imgUrl}
                 alt={record.name}
-                className="w-11 h-11 rounded-xl object-cover border border-slate-200 shadow-2xs group-hover:scale-105 transition-transform"
+                className="w-12 h-12 rounded-2xl object-cover border border-slate-200/80 shadow-2xs group-hover:scale-105 transition-transform"
               />
             ) : (
-              <div className="w-11 h-11 rounded-xl bg-rose-50 text-[#FE375D] flex items-center justify-center font-bold text-base border border-rose-100 group-hover:scale-105 transition-transform">
-                {record.name.charAt(0)}
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-50 to-rose-100/60 text-[#FE375D] flex items-center justify-center font-bold text-lg border border-rose-200/50 group-hover:scale-105 transition-transform">
+                <FolderOpenOutlined />
               </div>
             )}
             <div>
-              <p className="font-bold text-slate-800 text-sm group-hover:text-[#FE375D] transition-colors flex items-center gap-1.5">
+              <p className="font-bold text-slate-900 text-sm group-hover:text-[#FE375D] transition-colors flex items-center gap-2">
                 {record.name}
+                <RightOutlined className="text-[10px] text-slate-300 group-hover:text-[#FE375D] transition-all group-hover:translate-x-0.5" />
               </p>
               <p className="text-[11px] text-slate-400 font-mono">/{record.slug}</p>
             </div>
@@ -190,9 +155,13 @@ export default function CategoriesPage() {
       render: (_, record) => {
         const count = record.servicesCount ?? (record.services?.length || 0);
         return (
-          <Tag color="cyan" className="font-semibold text-xs px-2.5 py-0.5 rounded-lg">
+          <span
+            onClick={() => navigate(`/categories/${record._id}`)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-50 border border-cyan-200/70 text-cyan-800 text-xs font-bold cursor-pointer hover:bg-cyan-100/80 transition-colors"
+          >
+            <ToolOutlined className="text-cyan-600 text-[11px]" />
             {count} {count === 1 ? "Service" : "Services"}
-          </Tag>
+          </span>
         );
       },
     },
@@ -203,7 +172,7 @@ export default function CategoriesPage() {
         <Switch
           size="small"
           checked={record.isActive}
-          onChange={() => handleToggleCategoryActive(record)}
+          onChange={() => handleToggleActive(record)}
           checkedChildren="Active"
           unCheckedChildren="Inactive"
         />
@@ -226,16 +195,16 @@ export default function CategoriesPage() {
           {
             key: "view",
             icon: <EyeOutlined />,
-            label: "Open Category Folder",
+            label: "Open Services Page",
             onClick: () => navigate(`/categories/${record._id}`),
           },
           {
             key: "edit",
             icon: <EditOutlined />,
-            label: "Edit Category",
+            label: "Edit Folder",
             onClick: () => {
               setEditingCategory(record);
-              setCategoryModalOpen(true);
+              setModalOpen(true);
             },
           },
           { type: "divider" },
@@ -244,9 +213,9 @@ export default function CategoriesPage() {
             icon: <DeleteOutlined />,
             label: (
               <Popconfirm
-                title="Delete this category?"
-                description="Make sure all services under this category are removed first."
-                onConfirm={() => handleDeleteCategory(record._id)}
+                title="Delete this category folder?"
+                description="All services under this folder must be removed first."
+                onConfirm={() => handleDelete(record._id)}
                 okText="Delete"
                 cancelText="Cancel"
                 okButtonProps={{ danger: true }}
@@ -261,13 +230,14 @@ export default function CategoriesPage() {
         return (
           <div className="flex items-center justify-end gap-2">
             <Button
-              type="text"
+              type="primary"
+              ghost
               size="small"
               icon={<EyeOutlined />}
               onClick={() => navigate(`/categories/${record._id}`)}
-              className="text-slate-600 hover:text-[#FE375D]"
+              className="text-xs font-semibold rounded-lg border-slate-300 text-slate-700 hover:border-[#FE375D] hover:text-[#FE375D]"
             >
-              Services
+              View Services
             </Button>
             <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
               <Button type="text" size="small" icon={<MoreOutlined />} />
@@ -278,347 +248,345 @@ export default function CategoriesPage() {
     },
   ];
 
-  // Service Columns
-  const serviceColumns: TableProps<CatalogService>["columns"] = [
-    {
-      title: "Service Name",
-      key: "name",
-      render: (_, record) => {
-        const imgUrl = record.image ? getImageUrl(record.image) : null;
-        return (
-          <div className="flex items-center gap-3">
-            {imgUrl ? (
-              <img
-                src={imgUrl}
-                alt={record.name}
-                className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-2xs"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-sm">
-                <ToolOutlined />
-              </div>
-            )}
-            <div>
-              <p className="font-bold text-slate-800 text-sm">{record.name}</p>
-              <p className="text-[11px] text-slate-400 font-mono">/{record.slug}</p>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      title: "Category",
-      key: "category",
-      render: (_, record) => {
-        const catName =
-          typeof record.category === "object"
-            ? record.category.name
-            : "Assigned Category";
-        const catId =
-          typeof record.category === "object" ? record.category._id : record.category;
-        return (
-          <Tag
-            color="volcano"
-            className="font-semibold text-xs px-2.5 py-0.5 rounded-lg cursor-pointer hover:opacity-80"
-            onClick={() => navigate(`/categories/${catId}`)}
-          >
-            {catName}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: "Description",
-      dataIndex: "description",
-      key: "description",
-      render: (desc: string) => (
-        <span className="text-xs text-slate-600 line-clamp-1 max-w-sm">
-          {desc || "No description"}
-        </span>
-      ),
-    },
-    {
-      title: "Status",
-      key: "isActive",
-      render: (_, record) => (
-        <Switch
-          size="small"
-          checked={record.isActive}
-          onChange={() => handleToggleServiceActive(record)}
-          checkedChildren="Active"
-          unCheckedChildren="Inactive"
-        />
-      ),
-    },
-    {
-      title: "Created",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      render: (date: string) => (
-        <span className="text-xs text-slate-500">{formatDate(date)}</span>
-      ),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      align: "right",
-      render: (_, record) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingService(record);
-              setServiceModalOpen(true);
-            }}
-          />
-          <Popconfirm
-            title="Delete this service?"
-            description="Artisans who have selected this service might be affected."
-            onConfirm={() => handleDeleteService(record._id)}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div className="space-y-6">
-      {/* Top Header */}
+      {/* 1. Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Service Catalog & Categories
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Organize services into category folders and manage offerings available to artisans.
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              Service Categories
+            </h1>
+            <Tag color="cyan" className="rounded-full px-2.5 font-bold text-[11px] border-none bg-cyan-50 text-cyan-700">
+              {totalCategories} Folders
+            </Tag>
+          </div>
+          <p className="text-xs text-slate-500 mt-1 max-w-xl">
+            Each category represents a trade folder grouping related services. Click any category to open its dedicated services page.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2.5">
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => {
-              refetchCategories();
-              refetchServices();
-            }}
-            className="rounded-xl border-slate-200"
+            onClick={() => refetch()}
+            className="rounded-xl border-slate-200 text-slate-700 font-medium"
           >
             Refresh
           </Button>
-          {activeTab === "categories" ? (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setEditingCategory(null);
-                setCategoryModalOpen(true);
-              }}
-              className="bg-[#FE375D] hover:bg-[#e02d4f] border-none rounded-xl font-bold shadow-md shadow-rose-500/20"
-            >
-              Add Category
-            </Button>
-          ) : (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setEditingService(null);
-                setServiceModalOpen(true);
-              }}
-              className="bg-[#FE375D] hover:bg-[#e02d4f] border-none rounded-xl font-bold shadow-md shadow-rose-500/20"
-            >
-              Add Service
-            </Button>
-          )}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditingCategory(null);
+              setModalOpen(true);
+            }}
+            className="bg-[#FE375D] hover:bg-[#e02d4f] border-none rounded-xl font-bold px-4 shadow-md shadow-rose-500/20"
+          >
+            Create Category
+          </Button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <GlassCard className="p-4 sm:p-6">
-        <Tabs
-          activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as "categories" | "services")}
-          items={[
-            {
-              key: "categories",
-              label: (
-                <span className="flex items-center gap-2 font-bold px-1 py-0.5">
-                  <FolderOutlined />
-                  Category Folders
-                  <Tag className="rounded-full px-2 text-[10px] bg-slate-100 text-slate-700 border-none ml-1">
-                    {categoriesRes?.pagination?.total ?? categories.length}
-                  </Tag>
-                </span>
-              ),
-              children: (
-                <div className="space-y-4 pt-2">
-                  {/* Search Bar */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <Input
-                      placeholder="Search category by name..."
-                      prefix={<SearchOutlined className="text-slate-400" />}
-                      value={categorySearch}
-                      onChange={(e) => {
-                        setCategorySearch(e.target.value);
-                        setCategoryPage(1);
-                      }}
-                      allowClear
-                      className="max-w-md rounded-xl"
-                    />
-                    <span className="text-xs text-slate-400">
-                      Click any category folder to view and manage its services
-                    </span>
-                  </div>
+      {/* 2. Top Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <GlassCard className="p-4 sm:p-5 flex items-center justify-between border-slate-200/80">
+          <div>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Total Categories
+            </p>
+            <p className="text-2xl font-black text-slate-900 mt-1">{totalCategories}</p>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg">
+            <FolderOpenOutlined />
+          </div>
+        </GlassCard>
 
-                  {/* Table with Regular Pagination */}
-                  <Table
-                    columns={categoryColumns}
-                    dataSource={categories}
-                    rowKey="_id"
-                    loading={isCategoriesLoading}
-                    onRow={(record) => ({
-                      onClick: (e) => {
-                        // Avoid triggering navigation when clicking on switch, dropdown or actions
-                        const target = e.target as HTMLElement;
-                        if (!target.closest("button, .ant-switch, .ant-dropdown-trigger")) {
-                          navigate(`/categories/${record._id}`);
-                        }
-                      },
-                      className: "cursor-pointer hover:bg-slate-50/70 transition-colors",
-                    })}
-                    pagination={{
-                      current: categoryPage,
-                      pageSize: categoryLimit,
-                      total: categoriesRes?.pagination?.total,
-                      showSizeChanger: true,
-                      pageSizeOptions: ["10", "20", "50"],
-                      onChange: (page, pageSize) => {
-                        setCategoryPage(page);
-                        setCategoryLimit(pageSize);
-                      },
-                    }}
-                    locale={{
-                      emptyText: (
-                        <EmptyState
-                          title="No Categories Found"
-                          description="Get started by creating your first category folder."
-                          actionText="Create Category"
-                          onAction={() => {
-                            setEditingCategory(null);
-                            setCategoryModalOpen(true);
-                          }}
-                        />
-                      ),
-                    }}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: "services",
-              label: (
-                <span className="flex items-center gap-2 font-bold px-1 py-0.5">
-                  <ToolOutlined />
-                  Services Catalog
-                  <Tag className="rounded-full px-2 text-[10px] bg-slate-100 text-slate-700 border-none ml-1">
-                    {servicesRes?.pagination?.total ?? services.length}
-                  </Tag>
-                </span>
-              ),
-              children: (
-                <div className="space-y-4 pt-2">
-                  {/* Filters */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                      <Input
-                        placeholder="Search service name or description..."
-                        prefix={<SearchOutlined className="text-slate-400" />}
-                        value={serviceSearch}
-                        onChange={(e) => {
-                          setServiceSearch(e.target.value);
-                          setServicePage(1);
-                        }}
-                        allowClear
-                        className="w-full sm:w-72 rounded-xl"
-                      />
-                      <Select
-                        value={selectedCategoryFilter}
-                        onChange={(v) => {
-                          setSelectedCategoryFilter(v);
-                          setServicePage(1);
-                        }}
-                        className="w-full sm:w-56"
-                        options={[
-                          { value: "all", label: "All Categories" },
-                          ...categories.map((c) => ({
-                            value: c._id,
-                            label: c.name,
-                          })),
-                        ]}
-                      />
-                    </div>
-                  </div>
+        <GlassCard className="p-4 sm:p-5 flex items-center justify-between border-slate-200/80">
+          <div>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Active Folders
+            </p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">{activeCount}</p>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100">
+            <CheckCircleOutlined />
+          </div>
+        </GlassCard>
 
-                  {/* Table with Regular Pagination */}
-                  <Table
-                    columns={serviceColumns}
-                    dataSource={services}
-                    rowKey="_id"
-                    loading={isServicesLoading}
-                    pagination={{
-                      current: servicePage,
-                      pageSize: serviceLimit,
-                      total: servicesRes?.pagination?.total,
-                      showSizeChanger: true,
-                      pageSizeOptions: ["10", "20", "50"],
-                      onChange: (page, pageSize) => {
-                        setServicePage(page);
-                        setServiceLimit(pageSize);
-                      },
-                    }}
-                    locale={{
-                      emptyText: (
-                        <EmptyState
-                          title="No Services Found"
-                          description="Add services under category folders to populate the catalog."
-                          actionText="Add New Service"
-                          onAction={() => {
-                            setEditingService(null);
-                            setServiceModalOpen(true);
-                          }}
-                        />
-                      ),
-                    }}
-                  />
-                </div>
-              ),
-            },
-          ]}
-        />
+        <GlassCard className="p-4 sm:p-5 flex items-center justify-between border-slate-200/80">
+          <div>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Catalog Services
+            </p>
+            <p className="text-2xl font-black text-cyan-600 mt-1">{totalServicesAcross}</p>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-lg border border-cyan-100">
+            <ToolOutlined />
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* 3. Filter Toolbar */}
+      <GlassCard className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="w-full sm:w-80">
+          <Input
+            placeholder="Search category folders..."
+            prefix={<SearchOutlined className="text-slate-400 mr-1" />}
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+            className="rounded-xl border-slate-200"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 self-end sm:self-center">
+          <span className="text-xs text-slate-400 hidden sm:inline">
+            Click any folder to view connected services
+          </span>
+          <Segmented
+            value={viewMode}
+            onChange={(val) => setViewMode(val as "grid" | "table")}
+            options={[
+              {
+                value: "grid",
+                icon: <AppstoreOutlined />,
+                label: "Grid",
+              },
+              {
+                value: "table",
+                icon: <UnorderedListOutlined />,
+                label: "Table",
+              },
+            ]}
+            className="bg-slate-100 p-0.5 rounded-xl"
+          />
+        </div>
       </GlassCard>
 
-      {/* Modals */}
+      {/* 4. Category Views */}
+      {viewMode === "grid" ? (
+        <div className="space-y-6">
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <div
+                  key={n}
+                  className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 animate-pulse"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-200" />
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-4 w-28 bg-slate-200 rounded" />
+                      <div className="h-3 w-16 bg-slate-100 rounded" />
+                    </div>
+                  </div>
+                  <div className="h-10 bg-slate-100 rounded-xl" />
+                </div>
+              ))}
+            </div>
+          ) : categories.length === 0 ? (
+            <GlassCard className="p-12 text-center">
+              <EmptyState
+                title="No Category Folders Found"
+                description="Create your first service category folder to start grouping services."
+                actionText="Create Category"
+                onAction={() => {
+                  setEditingCategory(null);
+                  setModalOpen(true);
+                }}
+              />
+            </GlassCard>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {categories.map((cat) => {
+                const imgUrl = cat.image ? getImageUrl(cat.image) : null;
+                const count = cat.servicesCount ?? (cat.services?.length || 0);
+
+                const menuItems: MenuProps["items"] = [
+                  {
+                    key: "view",
+                    icon: <EyeOutlined />,
+                    label: "Open Services Page",
+                    onClick: () => navigate(`/categories/${cat._id}`),
+                  },
+                  {
+                    key: "edit",
+                    icon: <EditOutlined />,
+                    label: "Edit Folder",
+                    onClick: () => {
+                      setEditingCategory(cat);
+                      setModalOpen(true);
+                    },
+                  },
+                  { type: "divider" },
+                  {
+                    key: "delete",
+                    icon: <DeleteOutlined />,
+                    label: (
+                      <Popconfirm
+                        title="Delete category folder?"
+                        description="All child services must be removed first."
+                        onConfirm={() => handleDelete(cat._id)}
+                        okText="Delete"
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <span className="text-rose-600 block">Delete Category</span>
+                      </Popconfirm>
+                    ),
+                    danger: true,
+                  },
+                ];
+
+                return (
+                  <GlassCard
+                    key={cat._id}
+                    className="p-5 group hover:border-[#FE375D]/40 hover:shadow-lg hover:shadow-rose-500/5 transition-all duration-300 flex flex-col justify-between cursor-pointer relative"
+                    onClick={() => navigate(`/categories/${cat._id}`)}
+                  >
+                    <div>
+                      {/* Top row */}
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3.5">
+                          {imgUrl ? (
+                            <img
+                              src={imgUrl}
+                              alt={cat.name}
+                              className="w-13 h-13 rounded-2xl object-cover border border-slate-200/90 shadow-2xs group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-rose-50 to-rose-100 text-[#FE375D] flex items-center justify-center font-bold text-xl border border-rose-200/60 shadow-2xs group-hover:scale-105 transition-transform">
+                              <FolderOpenOutlined />
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-bold text-base text-slate-900 group-hover:text-[#FE375D] transition-colors leading-snug">
+                              {cat.name}
+                            </h3>
+                            <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                              /{cat.slug}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5"
+                        >
+                          <Switch
+                            size="small"
+                            checked={cat.isActive}
+                            onChange={() => handleToggleActive(cat)}
+                          />
+                          <Dropdown
+                            menu={{ items: menuItems }}
+                            trigger={["click"]}
+                            placement="bottomRight"
+                          >
+                            <Button type="text" size="small" icon={<MoreOutlined />} />
+                          </Dropdown>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-4 min-h-[32px]">
+                        {cat.description || "Official trade category folder for organizing services."}
+                      </p>
+                    </div>
+
+                    {/* Bottom row banner */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-50 border border-cyan-200/60 text-cyan-800 font-bold text-[11px]">
+                        <ToolOutlined className="text-cyan-600" />
+                        {count} {count === 1 ? "Service" : "Services"}
+                      </span>
+
+                      <span className="text-[#FE375D] font-bold text-xs flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                        Explore Services <RightOutlined className="text-[10px]" />
+                      </span>
+                    </div>
+                  </GlassCard>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Regular Pagination */}
+          {pagination && pagination.total > limit && (
+            <div className="flex justify-center pt-4">
+              <Table
+                dataSource={[]}
+                pagination={{
+                  current: page,
+                  pageSize: limit,
+                  total: pagination.total,
+                  showSizeChanger: true,
+                  pageSizeOptions: ["12", "24", "48"],
+                  onChange: (p, l) => {
+                    setPage(p);
+                    setLimit(l);
+                  },
+                }}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Table View */
+        <GlassCard className="p-0 overflow-hidden">
+          <Table
+            columns={columns}
+            dataSource={categories}
+            rowKey="_id"
+            loading={isLoading}
+            onRow={(record) => ({
+              onClick: (e) => {
+                const target = e.target as HTMLElement;
+                if (!target.closest("button, .ant-switch, .ant-dropdown-trigger")) {
+                  navigate(`/categories/${record._id}`);
+                }
+              },
+              className: "cursor-pointer hover:bg-slate-50/70 transition-colors",
+            })}
+            pagination={{
+              current: page,
+              pageSize: limit,
+              total: pagination?.total ?? categories.length,
+              showSizeChanger: true,
+              pageSizeOptions: ["10", "20", "50"],
+              onChange: (p, l) => {
+                setPage(p);
+                setLimit(l);
+              },
+            }}
+            locale={{
+              emptyText: (
+                <EmptyState
+                  title="No Categories Found"
+                  description="Create your first category folder to start grouping services."
+                  actionText="Create Category"
+                  onAction={() => {
+                    setEditingCategory(null);
+                    setModalOpen(true);
+                  }}
+                />
+              ),
+            }}
+          />
+        </GlassCard>
+      )}
+
+      {/* Modal */}
       <CreateEditCategoryModal
-        open={categoryModalOpen}
+        open={modalOpen}
         category={editingCategory}
         onClose={() => {
-          setCategoryModalOpen(false);
+          setModalOpen(false);
           setEditingCategory(null);
-        }}
-      />
-
-      <CreateEditServiceModal
-        open={serviceModalOpen}
-        service={editingService}
-        onClose={() => {
-          setServiceModalOpen(false);
-          setEditingService(null);
         }}
       />
     </div>
