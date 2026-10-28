@@ -18,6 +18,7 @@ import {
   DeleteOutlined,
   ToolOutlined,
   MoreOutlined,
+  FolderOpenOutlined,
 } from "@ant-design/icons";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -25,7 +26,9 @@ import { CreateEditCategoryModal } from "./components/CreateEditCategoryModal";
 import { CreateEditServiceModal } from "./components/CreateEditServiceModal";
 import {
   useGetCategoryByIdQuery,
+  useGetServicesQuery,
   useDeleteCategoryMutation,
+  useUpdateCategoryMutation,
   useDeleteServiceMutation,
   useUpdateServiceMutation,
 } from "@/redux/features/categories/categoriesApi";
@@ -42,18 +45,39 @@ export default function CategoryDetailPage() {
   const [serviceModalOpen, setServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<CatalogService | null>(null);
 
-  const { data: catRes, isLoading, refetch } = useGetCategoryByIdQuery(id || "", {
+  // Pagination for services within this category
+  const [servicePage, setServicePage] = useState(1);
+  const [serviceLimit, setServiceLimit] = useState(10);
+
+  const { data: catRes, isLoading: isCatLoading, refetch: refetchCategory } = useGetCategoryByIdQuery(id || "", {
     skip: !id,
   });
 
-  const [deleteCategory, { isLoading: isDeletingCat }] = useDeleteCategoryMutation();
+  const {
+    data: servicesRes,
+    isLoading: isServicesLoading,
+    refetch: refetchServices,
+  } = useGetServicesQuery(
+    id
+      ? {
+          category: id,
+          page: servicePage,
+          limit: serviceLimit,
+        }
+      : undefined,
+    { skip: !id }
+  );
+
+  const [deleteCategory] = useDeleteCategoryMutation();
+  const [updateCategory] = useUpdateCategoryMutation();
   const [deleteService] = useDeleteServiceMutation();
   const [updateService] = useUpdateServiceMutation();
 
   const category = catRes?.data;
-  const services: CatalogService[] = (category as any)?.services || [];
+  const services = servicesRes?.data || (category as any)?.services || [];
+  const totalServices = servicesRes?.pagination?.total ?? services.length;
 
-  if (isLoading) {
+  if (isCatLoading) {
     return (
       <div className="py-20 text-center">
         <Spin size="large" />
@@ -87,11 +111,27 @@ export default function CategoryDetailPage() {
     }
   };
 
+  const handleToggleCategoryActive = async () => {
+    try {
+      await updateCategory({
+        id: category._id,
+        isActive: !category.isActive,
+      }).unwrap();
+      toast.success(
+        `Category ${category.isActive ? "deactivated" : "activated"} successfully`
+      );
+      refetchCategory();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to update category status");
+    }
+  };
+
   const handleDeleteService = async (serviceId: string) => {
     try {
       await deleteService(serviceId).unwrap();
       toast.success("Service deleted successfully");
-      refetch();
+      refetchServices();
+      refetchCategory();
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to delete service");
     }
@@ -103,36 +143,36 @@ export default function CategoryDetailPage() {
         id: record._id,
         isActive: !record.isActive,
       }).unwrap();
-      toast.success(`Service ${!record.isActive ? "activated" : "deactivated"}`);
-      refetch();
+      toast.success(
+        `Service ${record.isActive ? "deactivated" : "activated"} successfully`
+      );
+      refetchServices();
     } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to update service");
+      toast.error(err?.data?.message || "Failed to update service status");
     }
   };
-
-  const img = getImageUrl(category.image);
 
   const serviceColumns: TableProps<CatalogService>["columns"] = [
     {
       title: "Service Name",
       key: "name",
       render: (_, record) => {
-        const sImg = getImageUrl(record.image);
+        const imgUrl = record.image ? getImageUrl(record.image) : null;
         return (
           <div className="flex items-center gap-3">
-            {sImg ? (
+            {imgUrl ? (
               <img
-                src={sImg}
+                src={imgUrl}
                 alt={record.name}
-                className="w-9 h-9 rounded-lg object-cover border border-slate-200"
+                className="w-10 h-10 rounded-xl object-cover border border-slate-200"
               />
             ) : (
-              <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs border border-blue-100">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center font-bold">
                 <ToolOutlined />
               </div>
             )}
             <div>
-              <p className="font-semibold text-slate-800 text-sm">{record.name}</p>
+              <p className="font-bold text-slate-800 text-sm">{record.name}</p>
               <p className="text-[11px] text-slate-400 font-mono">/{record.slug}</p>
             </div>
           </div>
@@ -144,13 +184,13 @@ export default function CategoryDetailPage() {
       dataIndex: "description",
       key: "description",
       render: (desc: string) => (
-        <span className="text-xs text-slate-600 line-clamp-1 max-w-sm">
-          {desc || "No description provided"}
+        <span className="text-xs text-slate-600 line-clamp-1 max-w-md">
+          {desc || "No description"}
         </span>
       ),
     },
     {
-      title: "Catalog Status",
+      title: "Status",
       key: "isActive",
       render: (_, record) => (
         <Switch
@@ -160,6 +200,14 @@ export default function CategoryDetailPage() {
           checkedChildren="Active"
           unCheckedChildren="Inactive"
         />
+      ),
+    },
+    {
+      title: "Created",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date: string) => (
+        <span className="text-xs text-slate-500">{formatDate(date)}</span>
       ),
     },
     {
@@ -184,7 +232,7 @@ export default function CategoryDetailPage() {
             label: (
               <Popconfirm
                 title="Delete this service?"
-                description="If artisans have selected this service, deletion is blocked. Deactivate it instead."
+                description="Make sure artisans are not actively offering it."
                 onConfirm={() => handleDeleteService(record._id)}
                 okText="Delete"
                 cancelText="Cancel"
@@ -199,104 +247,101 @@ export default function CategoryDetailPage() {
 
         return (
           <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
-            <Button type="text" shape="circle" icon={<MoreOutlined />} />
+            <Button type="text" size="small" icon={<MoreOutlined />} />
           </Dropdown>
         );
       },
     },
   ];
 
+  const catImage = category.image ? getImageUrl(category.image) : null;
+
   return (
     <div className="space-y-6">
-      {/* Top action header */}
-      <div className="flex items-center justify-between">
+      {/* Back button */}
+      <div>
         <Button
+          type="text"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate("/categories")}
-          className="rounded-xl"
+          className="text-slate-600 hover:text-slate-900 font-medium -ml-2"
         >
-          Back to Categories
+          Back to All Categories
         </Button>
-
-        <div className="flex items-center gap-2">
-          <Button
-            icon={<EditOutlined />}
-            onClick={() => setCategoryModalOpen(true)}
-            className="rounded-xl font-medium"
-          >
-            Edit Category
-          </Button>
-
-          <Popconfirm
-            title="Delete category?"
-            description="Ensure all services in this category are removed or reassigned."
-            onConfirm={handleDeleteCategory}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              loading={isDeletingCat}
-              className="rounded-xl"
-            />
-          </Popconfirm>
-        </div>
       </div>
 
-      {/* Banner Card */}
-      <GlassCard className="p-6 md:p-8">
+      {/* Category Overview Card */}
+      <GlassCard className="p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            {img ? (
+          <div className="flex items-center gap-4">
+            {catImage ? (
               <img
-                src={img}
+                src={catImage}
                 alt={category.name}
-                className="w-20 h-20 rounded-2xl object-cover border border-slate-200 shadow-sm"
+                className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-sm"
               />
             ) : (
-              <div className="w-20 h-20 rounded-2xl bg-rose-50 text-[#FE375D] font-extrabold text-3xl flex items-center justify-center border border-rose-100">
-                {category.name.charAt(0)}
+              <div className="w-16 h-16 rounded-2xl bg-rose-50 text-[#FE375D] flex items-center justify-center font-bold text-2xl border border-rose-100">
+                <FolderOpenOutlined />
               </div>
             )}
-
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                  {category.name}
-                </h1>
-                <Tag color="magenta" className="font-mono text-xs">
-                  /{category.slug}
-                </Tag>
+                <h1 className="text-2xl font-black text-slate-900">{category.name}</h1>
                 <Tag color={category.isActive ? "success" : "default"}>
                   {category.isActive ? "Active Folder" : "Inactive Folder"}
                 </Tag>
               </div>
-              <p className="text-xs text-slate-600 mt-2 max-w-xl">
-                {category.description || "No description specified for this category folder."}
-              </p>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">/{category.slug}</p>
+              {category.description && (
+                <p className="text-xs text-slate-600 mt-2 max-w-2xl leading-relaxed">
+                  {category.description}
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-col sm:items-end text-xs text-slate-400">
-            <span>Created on {formatDate(category.createdAt)}</span>
-            <span className="mt-1 font-semibold text-slate-700">
-              {services.length} Total Services Configured
-            </span>
+          <div className="flex items-center gap-3 self-end sm:self-center">
+            <Switch
+              checked={category.isActive}
+              onChange={handleToggleCategoryActive}
+              checkedChildren="Active"
+              unCheckedChildren="Inactive"
+            />
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => setCategoryModalOpen(true)}
+              className="rounded-xl border-slate-200"
+            >
+              Edit Category
+            </Button>
+            <Popconfirm
+              title="Delete Category?"
+              description="Are you sure you want to remove this category? All child services must be removed first."
+              onConfirm={handleDeleteCategory}
+              okText="Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger icon={<DeleteOutlined />} className="rounded-xl" />
+            </Popconfirm>
           </div>
         </div>
       </GlassCard>
 
-      {/* Services List Table */}
+      {/* Services List Card */}
       <GlassCard className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <ToolOutlined className="text-[#FE375D]" /> Services inside {category.name} ({services.length})
-            </h3>
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <ToolOutlined className="text-[#FE375D]" />
+              Services Connected with {category.name}
+              <Tag color="cyan" className="rounded-full px-2.5 font-bold ml-1">
+                {totalServices}
+              </Tag>
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Specific services that artisans offering {category.name} can select and set custom rates for
+              These are the individual services available for artisans to select within this trade folder.
             </p>
           </div>
 
@@ -307,22 +352,34 @@ export default function CategoryDetailPage() {
               setEditingService(null);
               setServiceModalOpen(true);
             }}
-            className="bg-[#FE375D] hover:bg-[#e0284e] border-none font-semibold rounded-xl"
+            className="bg-[#FE375D] hover:bg-[#e02d4f] border-none rounded-xl font-bold shadow-md shadow-rose-500/20"
           >
             Add Service to this Category
           </Button>
         </div>
 
+        {/* Regular Ant Design Pagination */}
         <Table
           columns={serviceColumns}
           dataSource={services}
           rowKey="_id"
-          pagination={false}
+          loading={isServicesLoading}
+          pagination={{
+            current: servicePage,
+            pageSize: serviceLimit,
+            total: totalServices,
+            showSizeChanger: true,
+            pageSizeOptions: ["10", "20", "50"],
+            onChange: (page, pageSize) => {
+              setServicePage(page);
+              setServiceLimit(pageSize);
+            },
+          }}
           locale={{
             emptyText: (
               <EmptyState
-                title="No services in this category yet"
-                description="Add the first service item so artisans can find it."
+                title="No Services Connected Yet"
+                description={`Add the first service under the ${category.name} folder.`}
                 actionText="Add Service"
                 onAction={() => {
                   setEditingService(null);
@@ -338,10 +395,7 @@ export default function CategoryDetailPage() {
       <CreateEditCategoryModal
         open={categoryModalOpen}
         category={category}
-        onClose={() => {
-          setCategoryModalOpen(false);
-          refetch();
-        }}
+        onClose={() => setCategoryModalOpen(false)}
       />
 
       <CreateEditServiceModal
@@ -351,7 +405,8 @@ export default function CategoryDetailPage() {
         onClose={() => {
           setServiceModalOpen(false);
           setEditingService(null);
-          refetch();
+          refetchServices();
+          refetchCategory();
         }}
       />
     </div>

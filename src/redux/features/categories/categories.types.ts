@@ -1,3 +1,10 @@
+export interface PaginationMeta {
+  total: number;
+  limit: number;
+  page: number;
+  totalPage: number;
+}
+
 export interface CatalogService {
   _id: string;
   name: string;
@@ -28,6 +35,7 @@ export interface CategoriesResponse {
   success: boolean;
   message: string;
   data: ServiceCategory[];
+  pagination?: PaginationMeta;
 }
 
 export interface SingleCategoryResponse {
@@ -55,6 +63,7 @@ export interface ServicesResponse {
   success: boolean;
   message: string;
   data: CatalogService[];
+  pagination?: PaginationMeta;
 }
 
 export interface SingleServiceResponse {

@@ -3,8 +3,6 @@ import type {
   CategoriesResponse,
   CreateCategoryPayload,
   CreateServicePayload,
-  CatalogService,
-  ServiceCategory,
   SingleCategoryResponse,
   SingleServiceResponse,
   ServicesResponse,
@@ -15,12 +13,17 @@ import type {
 export const categoriesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Category Endpoints
-    getCategories: builder.query<CategoriesResponse, { searchTerm?: string; all?: boolean } | void>({
+    getCategories: builder.query<
+      CategoriesResponse,
+      { searchTerm?: string; page?: number; limit?: number; all?: boolean } | void
+    >({
       query: (params) => ({
         url: "/category",
         method: "GET",
         params: {
           ...(params?.searchTerm ? { searchTerm: params.searchTerm } : {}),
+          ...(params?.page ? { page: params.page } : {}),
+          ...(params?.limit ? { limit: params.limit } : {}),
           all: "true",
         },
       }),
@@ -46,22 +49,17 @@ export const categoriesApi = baseApi.injectEndpoints({
 
     createCategory: builder.mutation<SingleCategoryResponse, CreateCategoryPayload>({
       query: ({ imageFile, ...data }) => {
+        const formData = new FormData();
         if (imageFile) {
-          const formData = new FormData();
           formData.append("image", imageFile);
-          formData.append("name", data.name);
-          if (data.description) formData.append("description", data.description);
-          if (data.isActive !== undefined) formData.append("isActive", String(data.isActive));
-          return {
-            url: "/category",
-            method: "POST",
-            body: formData,
-          };
         }
+        formData.append("name", data.name);
+        if (data.description !== undefined) formData.append("description", data.description);
+        if (data.isActive !== undefined) formData.append("isActive", String(data.isActive));
         return {
           url: "/category",
           method: "POST",
-          body: data,
+          body: formData,
         };
       },
       invalidatesTags: [{ type: "Categories", id: "LIST" }, { type: "Stats", id: "USER_STATS" }],
@@ -69,22 +67,17 @@ export const categoriesApi = baseApi.injectEndpoints({
 
     updateCategory: builder.mutation<SingleCategoryResponse, UpdateCategoryPayload>({
       query: ({ id, imageFile, ...data }) => {
+        const formData = new FormData();
         if (imageFile) {
-          const formData = new FormData();
           formData.append("image", imageFile);
-          if (data.name) formData.append("name", data.name);
-          if (data.description !== undefined) formData.append("description", data.description);
-          if (data.isActive !== undefined) formData.append("isActive", String(data.isActive));
-          return {
-            url: `/category/${id}`,
-            method: "PATCH",
-            body: formData,
-          };
         }
+        if (data.name) formData.append("name", data.name);
+        if (data.description !== undefined) formData.append("description", data.description);
+        if (data.isActive !== undefined) formData.append("isActive", String(data.isActive));
         return {
           url: `/category/${id}`,
           method: "PATCH",
-          body: data,
+          body: formData,
         };
       },
       invalidatesTags: (_res, _err, { id }) => [
@@ -104,7 +97,7 @@ export const categoriesApi = baseApi.injectEndpoints({
     // Service Catalog Endpoints
     getServices: builder.query<
       ServicesResponse,
-      { category?: string; searchTerm?: string; all?: boolean } | void
+      { category?: string; searchTerm?: string; page?: number; limit?: number; all?: boolean } | void
     >({
       query: (params) => ({
         url: "/service",
@@ -112,6 +105,8 @@ export const categoriesApi = baseApi.injectEndpoints({
         params: {
           ...(params?.category ? { category: params.category } : {}),
           ...(params?.searchTerm ? { searchTerm: params.searchTerm } : {}),
+          ...(params?.page ? { page: params.page } : {}),
+          ...(params?.limit ? { limit: params.limit } : {}),
           all: "true",
         },
       }),
@@ -137,23 +132,18 @@ export const categoriesApi = baseApi.injectEndpoints({
 
     createService: builder.mutation<SingleServiceResponse, CreateServicePayload>({
       query: ({ imageFile, ...data }) => {
+        const formData = new FormData();
         if (imageFile) {
-          const formData = new FormData();
           formData.append("image", imageFile);
-          formData.append("name", data.name);
-          formData.append("category", data.category);
-          if (data.description) formData.append("description", data.description);
-          if (data.isActive !== undefined) formData.append("isActive", String(data.isActive));
-          return {
-            url: "/service",
-            method: "POST",
-            body: formData,
-          };
         }
+        formData.append("name", data.name);
+        formData.append("category", data.category);
+        if (data.description !== undefined) formData.append("description", data.description);
+        if (data.isActive !== undefined) formData.append("isActive", String(data.isActive));
         return {
           url: "/service",
           method: "POST",
-          body: data,
+          body: formData,
         };
       },
       invalidatesTags: [
@@ -164,23 +154,18 @@ export const categoriesApi = baseApi.injectEndpoints({
 
     updateService: builder.mutation<SingleServiceResponse, UpdateServicePayload>({
       query: ({ id, imageFile, ...data }) => {
+        const formData = new FormData();
         if (imageFile) {
-          const formData = new FormData();
           formData.append("image", imageFile);
-          if (data.name) formData.append("name", data.name);
-          if (data.category) formData.append("category", data.category);
-          if (data.description !== undefined) formData.append("description", data.description);
-          if (data.isActive !== undefined) formData.append("isActive", String(data.isActive));
-          return {
-            url: `/service/${id}`,
-            method: "PATCH",
-            body: formData,
-          };
         }
+        if (data.name) formData.append("name", data.name);
+        if (data.category) formData.append("category", data.category);
+        if (data.description !== undefined) formData.append("description", data.description);
+        if (data.isActive !== undefined) formData.append("isActive", String(data.isActive));
         return {
           url: `/service/${id}`,
           method: "PATCH",
-          body: data,
+          body: formData,
         };
       },
       invalidatesTags: (_res, _err, { id }) => [
