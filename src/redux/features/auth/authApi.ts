@@ -1,6 +1,7 @@
 import { baseApi } from "../../api/baseApi";
 import { setCredentials, setUser } from "./authSlice";
-import type { AuthResponse, LoginPayload, AuthUser } from "./auth.types";
+import type { LoginPayload, AuthUser } from "./auth.types";
+import { isDashboardRole } from "@/features/auth/roles";
 
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -13,23 +14,24 @@ export const authApi = baseApi.injectEndpoints({
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          const token =
-            data?.data?.createToken ||
-            data?.data?.accessToken ||
-            data?.data?.token ||
-            "";
-          const user: AuthUser = data?.data?.user || {
-            _id: data?.data?._id || "",
-            name: data?.data?.name || "Administrator",
-            email: data?.data?.email || "",
-            role: data?.data?.role || "SUPER_ADMIN",
-            status: "active",
-            verified: data?.data?.verified ?? true,
+          const payload = data?.data ?? {};
+          const role = payload.user?.role || payload.role;
+          const token = payload.createToken || payload.accessToken || payload.token || "";
+
+          if (!token || !isDashboardRole(role)) {
+            return;
+          }
+
+          const user: AuthUser = payload.user || {
+            _id: payload._id || payload.id || "",
+            name: payload.name || "Admin",
+            email: payload.email || "",
+            role,
+            status: payload.status || "active",
+            verified: payload.verified ?? true,
           };
 
-          if (token) {
-            dispatch(setCredentials({ token, user }));
-          }
+          dispatch(setCredentials({ token, user }));
         } catch {
           // handled by caller
         }

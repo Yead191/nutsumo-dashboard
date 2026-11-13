@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Form, Input, Button, Card } from "antd";
-import { MailOutlined, LockOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
+import { Form, Input, Button } from "antd";
 import { useLoginMutation } from "@/redux/features/auth/authApi";
+import { isDashboardRole } from "@/features/auth/roles";
+import { apiErrorMessage } from "@/lib/ref";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -13,106 +13,68 @@ export default function LoginPage() {
   const handleSubmit = async (values: { email: string; password?: string }) => {
     try {
       const res = await login(values).unwrap();
-      toast.success(res?.message || "Welcome back to Nutsumo Admin!");
+      const role = res?.data?.user?.role || res?.data?.role;
+      if (!isDashboardRole(role)) {
+        toast.error("Only admin and super admin accounts can open this desk.");
+        return;
+      }
+      toast.success(res?.message || "Signed in");
       navigate("/", { replace: true });
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Invalid credentials or sign-in failed");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Those credentials were not accepted"));
     }
   };
 
-  const handleFillDemo = () => {
-    form.setFieldsValue({
-      email: "superadmin@gmail.com",
-      password: "password@",
-    });
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Glow decorations */}
-      <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-[#FE375D]/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-8">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#FE375D] to-[#e0284e] items-center justify-center text-white font-extrabold text-2xl shadow-lg shadow-[#FE375D]/40 mb-3">
-            N
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Nutsumo Admin Portal
+    <div className="grid min-h-screen bg-[#fbf8f7] lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="hidden flex-col justify-between border-r border-[#f3e4e6] bg-[#fff7f8] px-12 py-10 text-stone-900 lg:flex">
+        <img src="/logo.png" alt="Nutsumo" className="h-12 w-auto object-contain" />
+        <div className="max-w-md">
+          <p className="text-sm font-medium text-[#FE375D]">Operations</p>
+          <h1 className="mt-3 text-4xl font-semibold leading-[1.15] tracking-tight text-stone-900">
+            The desk for jobs, escrow, and the people who do the work.
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Sign in to manage artisans, users, and service categories
+          <p className="mt-4 text-[15px] leading-relaxed text-stone-500">
+            Identity checks, custom services, bookings, and payouts live here. Customers and artisans stay on the marketplace.
           </p>
         </div>
+        <p className="text-xs text-stone-400">Ghana home services</p>
+      </section>
 
-        <div className="bg-white/95 backdrop-blur-xl p-8 rounded-3xl border border-white/20 shadow-2xl">
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            requiredMark={false}
-          >
+      <section className="flex items-start justify-center px-5 py-10 sm:items-center">
+        <div className="w-full max-w-sm">
+          <img
+            src="/logo.png"
+            alt="Nutsumo"
+            className="mb-8 h-12 w-auto object-contain lg:hidden"
+          />
+          <h2 className="text-2xl font-semibold tracking-tight text-stone-900">Sign in</h2>
+          <p className="mt-1 mb-6 text-sm text-stone-500">Admin and super admin accounts only.</p>
+
+          <Form form={form} layout="vertical" onFinish={handleSubmit} requiredMark={false}>
             <Form.Item
               name="email"
-              label={<span className="text-xs font-semibold uppercase text-slate-600">Email Address</span>}
+              label="Email"
               rules={[
-                { required: true, message: "Please enter your email" },
-                { type: "email", message: "Please enter a valid email address" },
+                { required: true, message: "Enter your email" },
+                { type: "email", message: "That email does not look right" },
               ]}
             >
-              <Input
-                prefix={<MailOutlined className="text-slate-400 mr-1" />}
-                placeholder="admin@nutsumo.com"
-                size="large"
-                className="rounded-xl"
-              />
+              <Input placeholder="you@nutsumo.com" size="large" />
             </Form.Item>
-
             <Form.Item
               name="password"
-              label={<span className="text-xs font-semibold uppercase text-slate-600">Password</span>}
-              rules={[{ required: true, message: "Please enter your password" }]}
+              label="Password"
+              rules={[{ required: true, message: "Enter your password" }]}
             >
-              <Input.Password
-                prefix={<LockOutlined className="text-slate-400 mr-1" />}
-                placeholder="••••••••"
-                size="large"
-                className="rounded-xl"
-              />
+              <Input.Password placeholder="Password" size="large" />
             </Form.Item>
-
-            <div className="pt-2">
-              <Button
-                type="primary"
-                htmlType="submit"
-                size="large"
-                loading={isLoading}
-                block
-                className="bg-[#FE375D] hover:bg-[#e0284e] text-white font-semibold rounded-xl h-11 shadow-md shadow-[#FE375D]/30 border-none cursor-pointer"
-              >
-                Sign In to Dashboard
-              </Button>
-            </div>
+            <Button type="primary" htmlType="submit" size="large" loading={isLoading} block>
+              Continue
+            </Button>
           </Form>
-
-          {/* Quick Demo Helper */}
-          <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Quick fill credentials:</span>
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-[#FE375D] hover:underline font-medium cursor-pointer"
-            >
-              Fill Admin Demo
-            </button>
-          </div>
         </div>
-
-        <p className="text-center text-xs text-slate-400 mt-6">
-          © {new Date().getFullYear()} Nutsumo. All rights reserved.
-        </p>
-      </div>
+      </section>
     </div>
   );
 }

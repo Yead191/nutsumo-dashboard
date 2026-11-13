@@ -38,22 +38,22 @@ export function StatCard({
     <GlassCard
       onClick={onClick}
       className={cn(
-        "p-5 flex flex-col justify-between relative overflow-hidden group cursor-pointer transition-all duration-200 hover:-translate-y-0.5",
-        onClick && "hover:border-primary/40"
+        "p-5 flex flex-col justify-between",
+        onClick && "cursor-pointer hover:border-stone-300"
       )}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+          <p className="text-[13px] font-medium text-stone-500 mb-1">
             {title}
           </p>
-          <h3 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+          <h3 className="text-2xl font-semibold text-stone-900 tracking-tight tabular-nums">
             {value}
           </h3>
         </div>
         <div
           className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-transform duration-200 group-hover:scale-110",
+            "w-9 h-9 rounded-lg flex items-center justify-center text-base",
             accentColor
           )}
         >

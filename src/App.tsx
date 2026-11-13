@@ -13,6 +13,10 @@ const ArtisansPage = lazy(() => import("@/features/artisans/ArtisansPage"));
 const ArtisanDetailPage = lazy(() => import("@/features/artisans/ArtisanDetailPage"));
 const CategoriesPage = lazy(() => import("@/features/categories/CategoriesPage"));
 const CategoryDetailPage = lazy(() => import("@/features/categories/CategoryDetailPage"));
+const JobsPage = lazy(() => import("@/features/jobs/JobsPage"));
+const BookingsPage = lazy(() => import("@/features/bookings/BookingsPage"));
+const OfferingsPage = lazy(() => import("@/features/offerings/OfferingsPage"));
+const ReviewsPage = lazy(() => import("@/features/reviews/ReviewsPage"));
 
 export default function App() {
   return (
@@ -25,6 +29,10 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route index element={<OverviewPage />} />
+            <Route path="jobs" element={<JobsPage />} />
+            <Route path="bookings" element={<BookingsPage />} />
+            <Route path="offerings" element={<OfferingsPage />} />
+            <Route path="reviews" element={<ReviewsPage />} />
 
             {/* User Management */}
             <Route path="users" element={<UsersPage />} />

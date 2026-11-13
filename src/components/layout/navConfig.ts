@@ -1,44 +1,78 @@
 import type { ComponentType } from "react";
 import {
-  DashboardOutlined,
-  UserOutlined,
-  IdcardOutlined,
-  AppstoreOutlined,
-  SafetyCertificateOutlined,
-} from "@ant-design/icons";
+  BadgeCheck,
+  Briefcase,
+  Layers,
+  LayoutDashboard,
+  Receipt,
+  Star,
+  Users,
+  Wrench,
+} from "lucide-react";
 
 export interface NavItem {
   key: string;
   label: string;
   path: string;
-  icon: ComponentType;
+  icon: ComponentType<{ size?: number; strokeWidth?: number }>;
   badgeKey?: "pendingVerifications";
 }
 
-export const NAV_ITEMS: NavItem[] = [
+export interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
   {
-    key: "overview",
-    label: "Overview",
-    path: "/",
-    icon: DashboardOutlined,
+    label: "Desk",
+    items: [
+      { key: "overview", label: "Overview", path: "/", icon: LayoutDashboard },
+      { key: "jobs", label: "Jobs", path: "/jobs", icon: Briefcase },
+      { key: "bookings", label: "Bookings", path: "/bookings", icon: Receipt },
+    ],
   },
   {
-    key: "users",
-    label: "User Management",
-    path: "/users",
-    icon: UserOutlined,
+    label: "People",
+    items: [
+      { key: "users", label: "People", path: "/users", icon: Users },
+      {
+        key: "artisans",
+        label: "Artisans",
+        path: "/artisans",
+        icon: BadgeCheck,
+        badgeKey: "pendingVerifications",
+      },
+    ],
   },
   {
-    key: "artisans",
-    label: "Artisans & Verification",
-    path: "/artisans",
-    icon: SafetyCertificateOutlined,
-    badgeKey: "pendingVerifications",
-  },
-  {
-    key: "categories",
-    label: "Service Categories",
-    path: "/categories",
-    icon: AppstoreOutlined,
+    label: "Catalog",
+    items: [
+      { key: "categories", label: "Categories", path: "/categories", icon: Layers },
+      { key: "offerings", label: "Custom services", path: "/offerings", icon: Wrench },
+      { key: "reviews", label: "Reviews", path: "/reviews", icon: Star },
+    ],
   },
 ];
+
+export const PAGE_TITLES: Record<string, string> = {
+  "/": "Overview",
+  "/jobs": "Jobs",
+  "/bookings": "Bookings",
+  "/users": "People",
+  "/artisans": "Artisans",
+  "/categories": "Categories",
+  "/offerings": "Custom services",
+  "/reviews": "Reviews",
+};
+
+export function titleForPath(pathname: string) {
+  if (pathname.startsWith("/users/")) return "Person";
+  if (pathname.startsWith("/artisans/")) return "Artisan";
+  if (pathname.startsWith("/categories/")) return "Category";
+  const match = Object.keys(PAGE_TITLES)
+    .filter((path) => path !== "/")
+    .find((path) => pathname === path || pathname.startsWith(`${path}/`));
+  if (match) return PAGE_TITLES[match];
+  return pathname === "/" ? "Overview" : "Nutsumo";
+}

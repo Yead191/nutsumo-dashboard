@@ -1,15 +1,11 @@
-import { Avatar, Button, Dropdown, type MenuProps } from "antd";
-import {
-  MenuOutlined,
-  LogoutOutlined,
-  UserOutlined,
-  BellOutlined,
-  } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { Dropdown, type MenuProps } from "antd";
+import { Menu } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { logout, selectCurrentUser } from "@/redux/features/auth/authSlice";
 import { getInitials } from "@/lib/utils";
 import { toast } from "sonner";
+import { titleForPath } from "./navConfig";
 
 interface TopbarProps {
   onToggleSidebar?: () => void;
@@ -17,12 +13,13 @@ interface TopbarProps {
 
 export function Topbar({ onToggleSidebar }: TopbarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
 
   const handleLogout = () => {
     dispatch(logout());
-    toast.success("Logged out successfully");
+    toast.success("Signed out");
     navigate("/login");
   };
 
@@ -30,9 +27,9 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
     {
       key: "info",
       label: (
-        <div className="py-1 px-1">
-          <p className="font-semibold text-slate-800 text-sm">{user?.name || "Administrator"}</p>
-          <p className="text-xs text-slate-500">{user?.email || "admin@nutsumo.com"}</p>
+        <div className="px-1 py-1">
+          <p className="text-sm font-medium text-stone-900">{user?.name || "Admin"}</p>
+          <p className="text-xs text-stone-500">{user?.email}</p>
         </div>
       ),
       disabled: true,
@@ -40,54 +37,42 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
     { type: "divider" },
     {
       key: "logout",
-      label: "Sign Out",
-      icon: <LogoutOutlined className="text-rose-600" />,
+      label: "Sign out",
       danger: true,
       onClick: handleLogout,
     },
   ];
 
   return (
-    <header className="h-16 px-4 md:px-8 bg-white border-b border-slate-200 flex items-center justify-between sticky top-0 z-20 shadow-xs">
-      {/* Mobile toggle & breadcrumb */}
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[#e7e2da] bg-[#f6f4f1]/95 px-4 backdrop-blur-sm md:px-8">
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={onToggleSidebar}
-          className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+          className="rounded-md p-1.5 text-stone-600 hover:bg-stone-200/70 md:hidden"
+          aria-label="Open navigation"
         >
-          <MenuOutlined className="text-lg" />
+          <Menu size={18} />
         </button>
+        <h1 className="text-[15px] font-semibold text-stone-900">
+          {titleForPath(location.pathname)}
+        </h1>
+      </div>
 
-        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-medium">
-          <span className="hover:text-slate-800 cursor-pointer" onClick={() => navigate("/")}>
-            Nutsumo Platform
+      <Dropdown menu={{ items: userMenuItems }} trigger={["click"]} placement="bottomRight">
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 hover:bg-white"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FE375D] text-[11px] font-semibold text-white">
+            {getInitials(user?.name)}
           </span>
-          <span>/</span>
-          <span className="text-slate-800 font-semibold">Management Console</span>
-        </div>
-      </div>
-
-      {/* Right actions */}
-      <div className="flex items-center gap-3">
-        <Dropdown menu={{ items: userMenuItems }} trigger={["click"]} placement="bottomRight">
-          <button className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer border border-transparent hover:border-slate-200">
-            <Avatar
-              size={36}
-              className="bg-gradient-to-tr from-[#FE375D] to-[#e0284e] text-white font-semibold shadow-xs"
-            >
-              {getInitials(user?.name)}
-            </Avatar>
-            <div className="hidden md:block text-left text-xs">
-              <p className="font-semibold text-slate-800 leading-tight">
-                {user?.name || "Admin"}
-              </p>
-              <p className="text-[11px] text-slate-500 uppercase font-medium">
-                {user?.role || "SUPER_ADMIN"}
-              </p>
-            </div>
-          </button>
-        </Dropdown>
-      </div>
+          <span className="hidden text-left text-xs md:block">
+            <span className="block font-medium text-stone-800">{user?.name || "Admin"}</span>
+            <span className="block text-stone-500">{user?.role?.replaceAll("_", " ")}</span>
+          </span>
+        </button>
+      </Dropdown>
     </header>
   );
 }

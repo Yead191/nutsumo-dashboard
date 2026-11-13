@@ -19,8 +19,8 @@ export function GlassCard({
     <div
       className={cn(
         flat
-          ? "bg-white border border-slate-200 rounded-xl shadow-xs"
-          : "bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200",
+          ? "bg-white border border-[#e7e2da] rounded-xl"
+          : "bg-white border border-[#e7e2da] rounded-xl",
         padded && "p-5 md:p-6",
         className
       )}

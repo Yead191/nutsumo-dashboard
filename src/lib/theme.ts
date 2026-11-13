@@ -10,7 +10,7 @@ export const nutsumoTheme: ThemeConfig = {
     colorWarning: "#f59e0b",
     colorError: "#ef4444",
     borderRadius: 8,
-    fontFamily: "'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     fontSize: 14,
     colorBgBase: "#ffffff",
     colorTextBase: "#0f172a",
