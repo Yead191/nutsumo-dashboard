@@ -92,11 +92,11 @@ export default function BookingsPage() {
                 {canRelease ? (
                   <Popconfirm
                     title="Release the payout?"
-                    description="Sends the artisan their net after VAT, NHIL, and GETFund."
+                    description="Moves the artisan's net into their Nutsumo balance. They withdraw it to bank or mobile money."
                     okText="Release"
                     onConfirm={() =>
                       run(
-                        () => releasePayout({ id: row._id, payoutMethod: "MANUAL_BANK" }).unwrap(),
+                        () => releasePayout({ id: row._id, payoutMethod: "WALLET" }).unwrap(),
                         "Payout released",
                       )
                     }

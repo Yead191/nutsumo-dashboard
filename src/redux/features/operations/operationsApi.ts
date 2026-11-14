@@ -55,6 +55,24 @@ export interface QuotationRecord {
   artisan?: NamedRef | string;
 }
 
+export interface WithdrawalRecord {
+  _id: string;
+  amount: number;
+  status: "REQUESTED" | "PROCESSING" | "PAID" | "FAILED";
+  method: "BANK" | "MOMO" | "STRIPE";
+  reference?: string;
+  failureReason?: string;
+  createdAt?: string;
+  destination?: {
+    accountName?: string;
+    bankName?: string;
+    accountNumber?: string;
+    momoNetwork?: string;
+    momoNumber?: string;
+  };
+  artisan?: NamedRef | string;
+}
+
 export interface BookingRecord {
   _id: string;
   bookingNumber?: string;
@@ -196,6 +214,31 @@ export const operationsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: [{ type: "ArtisanServices", id: "LIST" }],
     }),
+    getWithdrawals: builder.query<
+      ListResponse<WithdrawalRecord>,
+      { page?: number; limit?: number; status?: string } | void
+    >({
+      query: (params) => ({
+        url: "/wallet/withdrawals",
+        params: {
+          page: params?.page ?? 1,
+          limit: params?.limit ?? 12,
+          ...(params?.status ? { status: params.status } : {}),
+        },
+      }),
+      providesTags: [{ type: "Withdrawals", id: "LIST" }],
+    }),
+    settleWithdrawal: builder.mutation<
+      ItemResponse<WithdrawalRecord>,
+      { id: string; decision: "PAID" | "FAILED"; reference?: string; reason?: string }
+    >({
+      query: ({ id, decision, reference, reason }) => ({
+        url: `/wallet/withdrawals/${id}/settle`,
+        method: "PATCH",
+        body: { decision, ...(reference ? { reference } : {}), ...(reason ? { reason } : {}) },
+      }),
+      invalidatesTags: [{ type: "Withdrawals", id: "LIST" }],
+    }),
     getReviews: builder.query<
       ListResponse<ReviewRecord>,
       { page?: number; limit?: number; searchTerm?: string; rating?: number; status?: string } | void
@@ -226,4 +269,6 @@ export const {
   useGetOfferingsQuery,
   useReviewOfferingMutation,
   useGetReviewsQuery,
+  useGetWithdrawalsQuery,
+  useSettleWithdrawalMutation,
 } = operationsApi;

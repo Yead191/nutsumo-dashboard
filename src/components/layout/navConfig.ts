@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Receipt,
   Star,
+  Wallet,
   Users,
   Wrench,
 } from "lucide-react";
@@ -30,6 +31,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "overview", label: "Overview", path: "/", icon: LayoutDashboard },
       { key: "jobs", label: "Jobs", path: "/jobs", icon: Briefcase },
       { key: "bookings", label: "Bookings", path: "/bookings", icon: Receipt },
+      { key: "payouts", label: "Payouts", path: "/payouts", icon: Wallet },
     ],
   },
   {
@@ -59,6 +61,7 @@ export const PAGE_TITLES: Record<string, string> = {
   "/": "Overview",
   "/jobs": "Jobs",
   "/bookings": "Bookings",
+  "/payouts": "Payouts",
   "/users": "People",
   "/artisans": "Artisans",
   "/categories": "Categories",

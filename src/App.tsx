@@ -15,6 +15,7 @@ const CategoriesPage = lazy(() => import("@/features/categories/CategoriesPage")
 const CategoryDetailPage = lazy(() => import("@/features/categories/CategoryDetailPage"));
 const JobsPage = lazy(() => import("@/features/jobs/JobsPage"));
 const BookingsPage = lazy(() => import("@/features/bookings/BookingsPage"));
+const PayoutsPage = lazy(() => import("@/features/payouts/PayoutsPage"));
 const OfferingsPage = lazy(() => import("@/features/offerings/OfferingsPage"));
 const ReviewsPage = lazy(() => import("@/features/reviews/ReviewsPage"));
 
@@ -31,6 +32,7 @@ export default function App() {
             <Route index element={<OverviewPage />} />
             <Route path="jobs" element={<JobsPage />} />
             <Route path="bookings" element={<BookingsPage />} />
+            <Route path="payouts" element={<PayoutsPage />} />
             <Route path="offerings" element={<OfferingsPage />} />
             <Route path="reviews" element={<ReviewsPage />} />
 
